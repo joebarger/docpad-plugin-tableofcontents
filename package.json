@@ -1,6 +1,6 @@
 {
     "name": "docpad-plugin-tableofcontents",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "description": "DocPad plugin to automatically generate table of contents.",
     "homepage": "https://github.com/takitapart/docpad-plugin-tableofcontents",
     "keywords": [
@@ -13,23 +13,24 @@
     ],
     "contributors": [
         "Bob VanderClay <bob@vanderclay.net> (https://github.com/takitapart)"
+        "Joe Barger <joebarger@yahoo.com> (https://github.com/joebarger)"
     ],
     "bugs": {
-        "url": "https://github.com/takitapart/docpad-plugin-tableofcontents/issues"
+        "url": "https://github.com/joebarger/docpad-plugin-tableofcontents/issues"
     },
     "repository" : {
         "type": "git",
-        "url": "http://github.com/takitapart/docpad-plugin-tableofcontents.git"
+        "url": "http://github.com/joebarger/docpad-plugin-tableofcontents.git"
     },
     "engines" : {
         "node": ">=0.6.0",
         "docpad": "6.x"
     },
     "dependencies": {
-        "jsdom": "~0.2.0"
+        "cheerio": ">=0.17.0"
     },
     "devDependencies": {
         "coffee-script": "~1.4.0"
     },
-    "main": "./out/tableofcontents.plugin.js"
+    "main": "./src/tableofcontents.plugin.coffee"
 }

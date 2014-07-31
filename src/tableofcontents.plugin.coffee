@@ -1,29 +1,9 @@
-# Item for Table of Contents.
-class TableofcontentsItem
-    constructor: (@text, @id, @parent) ->
-        @children = []
-
-        if @parent?
-            parent.children.push @
-
-    add: (text, id) ->
-        child = new TableofcontentsItem text, id, @
-
-    text: ->
-        @text or null
-
-    id: ->
-        @id or null
-
-    submenu: ->
-        @children
-        
-
 # Export Plugin
 module.exports = (BasePlugin) ->
     # Requires
-    jsdom = require('jsdom')
-
+    cheerio = require('cheerio')
+    ensureUniqueIds = require('./ensureUniqueIds.coffee')
+    nestedArray = require('./nestedArray.coffee')
 
     # Define Plugin
     class TableofcontentsPlugin extends BasePlugin
@@ -57,50 +37,7 @@ module.exports = (BasePlugin) ->
             parsingTocHeaders: "Parsing ToC headers: "
             buildingToc: "Building ToC: "
 
-        buildTableofcontents: (window,headers) ->
-            # Prepare
-            config = @config
 
-            # Setup
-            currentLevel = (config.rootHeaderLevel - 1) # Root node is one higher
-            tableofcontents = new TableofcontentsItem
-            currentItem = tableofcontents
-
-            # Build ToC List
-            for value,key in headers
-                header = headers.item(key)
-                level = parseInt(header.tagName.charAt(1),10)
-
-                if config.addHeaderIds
-                    if not header.id
-                        # Build header id based on header title.
-                        # TODO: Check for uniqueness.
-                        headerText = header.innerHTML
-                        header.id = config.headerIdPrefix+headerText.replace(/[^a-zA-Z0-9]/g,'-').replace(/^-/,'').replace(/-+/,'-')
-                        
-                # Move up and down tree as necessary.
-                if level > currentLevel # down
-                    # Fill in missing empty intermediate levels.
-                    while level > (currentLevel + 1)
-                        currentItem = currentItem.add("", "")
-                        currentLevel++
-                    currentLevel++
-
-                else if level is currentLevel # same
-                    currentItem = currentItem.parent
-                    
-                else if level < currentLevel # up
-                    while level < currentLevel
-                        currentItem = currentItem.parent
-                        currentLevel--
-                    currentItem = currentItem.parent
-
-                # Add Item to ToC
-                currentItem = currentItem.add(header.innerHTML, header.id)
-
-            return tableofcontents
-
-            
         # Render Before, make sure we have required metadata placeholders
         renderBefore: (opts,next) ->
             # Prepare
@@ -144,39 +81,46 @@ module.exports = (BasePlugin) ->
                     docpad.log('debug', locale.parsingTocHeaders+document.name)
 
                     # Create DOM from the file content
-                    jsdom.env(
-                        html: "<html><body>#{opts.content}</body></html>"
-                        features:
-                            QuerySelector: true
-                        done: (err,window) ->
-                            # Check
-                            return next(err)  if err
+                    $ = cheerio.load("#{opts.content}")
 
-                            # Find headers
-                            headers = window.document.querySelectorAll(config.headerSelectors)
+                    # Reset Unique ID set for each document
+                    if config.addHeaderIds
+                        ensureUniqueIds.init()
 
-                            # Check
-                            if headers.length is 0
-                                return next()
+                    # Get headers, assigning ids if requested
+                    headers = $(config.headerSelectors).map(->
+                        $me = $(this)
 
-                            # Log
-                            docpad.log('debug', locale.buildingToc+document.name)
+                        _level = +@name.substring(1)
+                        _id = $me.attr("id")
+                        _text = $me.text().trim()
 
-                            # Build Table of Contents
-                            toc = me.buildTableofcontents(window, headers)
+                        if config.addHeaderIds
+                            _newId = ensureUniqueIds.checkId(_id or "", config.headerIdPrefix+_text)
+                            if _newId isnt _id
+                                $me.attr "id", _newId
+                                _id = _newId
 
-                            # Only if we added header ids, update content.
-                            if config.addHeaderIds
-                                opts.content = window.document.body.innerHTML
+                        # Return...
+                        level: _level
+                        text: _text
+                        id: _id
+                    ).get()
 
-                            # Update docment with contents.
-                            document.tableOfContents = toc.submenu();
+                    if headers.length is 0
+                        return next()
 
-                            return next()
-                    )
+                    # Log
+                    docpad.log('debug', locale.buildingToc+document.name)
 
-                else
-                    return next()
+                    # Build Table of Contents                                
+                    toc = nestedArray.fromArray(headers)
 
-            else
-                return next()
+                    # Only if we added header ids, update content.
+                    if config.addHeaderIds
+                        opts.content = $.root().html()
+
+                    # Update docment with contents.
+                    document.tableOfContents = toc;
+
+            return next()
