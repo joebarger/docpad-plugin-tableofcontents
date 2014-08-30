@@ -1,126 +1,124 @@
 # Export Plugin
 module.exports = (BasePlugin) ->
-    # Requires
-    cheerio = require('cheerio')
-    ensureUniqueIds = require('./ensureUniqueIds.coffee')
-    nestedArray = require('./nestedArray.coffee')
+	# Requires
+	cheerio = require('cheerio')
+	EnsureUniqueIds = require('./EnsureUniqueIds.coffee')
+	nestedArray = require('./nestedArray.coffee')
 
-    # Define Plugin
-    class TableofcontentsPlugin extends BasePlugin
-        # Plugin name
-        name: 'tableofcontents'
+	# Define Plugin
+	class TableofcontentsPlugin extends BasePlugin
+		# Plugin name
+		name: 'tableofcontents'
 
-        # Plugin configuration
-        config:
-            # Which document extentions to search and generate.
-            # For now, only html is supported.
-            documentExtensions: ["html"]
+		# Plugin configuration
+		config:
+			# Which document extentions to search and generate.
+			# For now, only html is supported.
+			documentExtensions: ['html']
 
-            # Is a metadata field required?
-            requireMetadata: true
-            # If true, specify required metadata field. Set this field to true.
-            requiredMetadataField: 'toc'
+			# Is a metadata field required?
+			requireMetadata: true
+			# If true, specify required metadata field. Set this field to true.
+			requiredMetadataField: 'toc'
 
-            # Add missing header id tags for ToC links.
-            addHeaderIds: true
-            # When adding header ids, use this prefix.
-            headerIdPrefix: ''
-            
-            # List of header elements to search.
-            headerSelectors: 'h2,h3,h4,h5'
+			# Add missing header id tags for ToC links.
+			addHeaderIds: true
+			# When adding header ids, use this prefix.
+			headerIdPrefix: ''
 
-            # Which header level should we start with. 
-            rootHeaderLevel: 2
+			# List of header elements to search.
+			headerSelectors: 'h2,h3,h4,h5'
 
-        # Locale
-        locale:
-            parsingTocHeaders: "Parsing ToC headers: "
-            buildingToc: "Building ToC: "
+			# Which header level should we start with.
+			rootHeaderLevel: 2
 
-
-        # Render Before, make sure we have required metadata placeholders
-        renderBefore: (opts,next) ->
-            # Prepare
-            documents = @docpad.getCollection(@config.collectionName or 'documents')
-            config = @config
-            locale = @locale
-
-            # Cycle through all our documents
-            documents.forEach (document) ->
-                tableOfContents = document.tableOfContents? or []
-                document.set(tableOfContents: tableOfContents)
-
-                tocProcessed = document.tocProcessed? or false
-                # document.tocProcessed = tocProcessed
-                document.set(tocProcessed: tocProcessed)
-
-                if config.requireMetadata
-                    requiredMetadataFieldValue = document[config.requiredMetadataField]? or false
-                    document[config.requiredMetadataField] = requiredMetadataFieldValue
-
-            # All done
-            return next()
+		# Locale
+		locale:
+			parsingTocHeaders: 'Parsing ToC headers: '
+			buildingToc: 'Building ToC: '
 
 
-        # Render the document
-        renderDocument: (opts,next) ->
-            # Prepare
-            {extension,templateData,file,content} = opts
-            me = @
-            docpad = @docpad
-            config = @config
-            locale = @locale
-            document = templateData.document
+		# Render Before, make sure we have required metadata placeholders
+		renderBefore: (opts,next) ->
+			# Prepare
+			documents = @docpad.getCollection(@config.collectionName or 'documents')
+			config = @config
+			locale = @locale
 
-            # Handle
-            if file.type is 'document' and extension in config.documentExtensions and not document.tocProcessed
-                if not config.requireMetadata or document[config.requiredMetadataField]
-                    document.tocProcessed = true;
+			# Cycle through all our documents
+			documents.forEach (document) ->
+				tableOfContents = document.tableOfContents? or []
+				document.set(tableOfContents: tableOfContents)
 
-                    # Log
-                    docpad.log('debug', locale.parsingTocHeaders+document.name)
+				tocProcessed = document.tocProcessed? or false
+				document.set(tocProcessed: tocProcessed)
 
-                    # Create DOM from the file content
-                    $ = cheerio.load("#{opts.content}")
+				if config.requireMetadata
+					requiredMetadataFieldValue = document[config.requiredMetadataField]? or false
+					document[config.requiredMetadataField] = requiredMetadataFieldValue
 
-                    # Reset Unique ID set for each document
-                    if config.addHeaderIds
-                        ensureUniqueIds.init()
+			# All done
+			return next()
 
-                    # Get headers, assigning ids if requested
-                    headers = $(config.headerSelectors).map(->
-                        $me = $(this)
+		
+		# Render the document
+		renderDocument: (opts,next) ->
+			# Prepare
+			{extension, templateData, file, content} = opts
+			me = @
+			docpad = @docpad
+			config = @config
+			locale = @locale
+			document = templateData.document
 
-                        _level = +@name.substring(1)
-                        _id = $me.attr("id")
-                        _text = $me.text().trim()
+			# Handle
+			if file.type is 'document' and extension in config.documentExtensions and not document.tocProcessed
+				if not config.requireMetadata or document[config.requiredMetadataField]
+					document.tocProcessed = true
 
-                        if config.addHeaderIds
-                            _newId = ensureUniqueIds.checkId(_id or "", config.headerIdPrefix+_text)
-                            if _newId isnt _id
-                                $me.attr "id", _newId
-                                _id = _newId
+					# Log
+					docpad.log('debug', locale.parsingTocHeaders+document.name)
 
-                        # Return...
-                        level: _level
-                        text: _text
-                        id: _id
-                    ).get()
+					# Create DOM from the file content
+					$ = cheerio.load(opts.content)
 
-                    if headers.length is 0
-                        return next()
+					# Reset Unique ID set for each document
+					ensureUniqueIds = new EnsureUniqueIds  if config.addHeaderIds
 
-                    # Log
-                    docpad.log('debug', locale.buildingToc+document.name)
+					# Get headers, assigning ids if requested
+					headers = $(config.headerSelectors).map(->
+						$me = $(this)
 
-                    # Build Table of Contents                                
-                    toc = nestedArray.fromArray(headers)
+						_level = +@name.substring(1)
+						_id = $me.attr('id')
+						_text = $me.text().trim()
 
-                    # Only if we added header ids, update content.
-                    if config.addHeaderIds
-                        opts.content = $.root().html()
+						if config.addHeaderIds
+							_newId = ensureUniqueIds.checkId(_id ? '', config.headerIdPrefix + _text)
+							if _newId isnt _id
+								$me.attr('id', _newId)
+								_id = _newId
 
-                    # Update docment with contents.
-                    document.tableOfContents = toc;
+						# Return object...
+						level: _level
+						text: _text
+						id: _id
+					).get()
 
-            return next()
+					if headers.length is 0
+						return next()
+
+					# Log
+					docpad.log('debug', locale.buildingToc + document.name)
+
+					# Build Table of Contents
+					toc = nestedArray.fromArray(headers)
+
+					# Only if we added header ids, update content.
+					if config.addHeaderIds
+						opts.content = $.root().html()
+
+					# Update docment with contents.
+					document.tableOfContents = toc
+
+			return next()

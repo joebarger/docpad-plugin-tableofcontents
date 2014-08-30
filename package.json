@@ -5,14 +5,15 @@
     "homepage": "https://github.com/takitapart/docpad-plugin-tableofcontents",
     "keywords": [
         "docpad",
-        "docpad-plugin"
+        "docpad-plugin",
+	"table-of-contents"
     ],
     "author": "Bob VanderClay <bob@vanderclay.net> (https://github.com/takitapart)",
     "maintainers": [
         "Bob VanderClay <bob@vanderclay.net> (https://github.com/takitapart)"
     ],
     "contributors": [
-        "Bob VanderClay <bob@vanderclay.net> (https://github.com/takitapart)"
+        "Bob VanderClay <bob@vanderclay.net> (https://github.com/takitapart)",
         "Joe Barger <joebarger@yahoo.com> (https://github.com/joebarger)"
     ],
     "bugs": {
@@ -23,14 +24,16 @@
         "url": "http://github.com/joebarger/docpad-plugin-tableofcontents.git"
     },
     "engines" : {
-        "node": ">=0.6.0",
-        "docpad": "6.x"
+        "node": ">=0.8"
     },
     "dependencies": {
         "cheerio": ">=0.17.0"
     },
     "devDependencies": {
         "coffee-script": "~1.4.0"
+    },
+    "peerDependencies": {
+        "docpad": "6"
     },
     "main": "./src/tableofcontents.plugin.coffee"
 }
